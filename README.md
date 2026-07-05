@@ -1,7 +1,6 @@
 # 📊 Retail Sales Forecasting & Demand Intelligence System
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app-url-here.streamlit.app/)
-*(Note: Replace the URL above with your actual live Streamlit link once deployed!)*
 
 ## 📝 Project Overview
 This project is an end-to-end AI-driven Sales Forecasting and Demand Intelligence system designed for a retail/e-commerce company. By leveraging 4 years of historical transaction data, this system predicts future product demand with high accuracy, automatically flags anomalous sales spikes or drops, and segments the product catalog based on distinct purchasing behaviors. 
