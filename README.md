@@ -47,3 +47,11 @@ Using K-Means clustering, the catalog was segmented into four distinct profiles:
    ```bash
    git clone https://github.com/NEO18082005/retail-sales-forecasting-dashboard.git
    cd retail-sales-forecasting-dashboard
+
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+
+3. Run the Streamlit application:
+   ```bash
+   streamlit run app.py
