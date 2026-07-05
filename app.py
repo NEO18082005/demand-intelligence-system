@@ -100,17 +100,45 @@ elif page == "Forecast Explorer":
 
 elif page == "Anomaly Report":
     st.title("Anomaly Report")
-    weekly = df.groupby('Order Date')['Sales'].sum().resample('W').sum().reset_index()
-    weekly['Rolling_Mean'] = weekly['Sales'].rolling(window=4).mean()
-    weekly['Rolling_Std'] = weekly['Sales'].rolling(window=4).std()
-    weekly['Z_Score'] = (weekly['Sales'] - weekly['Rolling_Mean']) / weekly['Rolling_Std']
-    anomalies = weekly[weekly['Z_Score'].abs() > 2]
     
-    fig = px.line(weekly, x='Order Date', y='Sales', title="Weekly Sales with Anomalies (Z-Score > 2)")
-    fig.add_scatter(x=anomalies['Order Date'], y=anomalies['Sales'], mode='markers', name='Anomaly', marker=dict(color='red', size=10))
+    # Aggregate to weekly
+    weekly = df.groupby('Order Date')['Sales'].sum().resample('W-SUN').sum().reset_index()
+    
+    # 1. Z-Score Anomaly Detection
+    weekly['Rolling_Mean'] = weekly['Sales'].shift(1).rolling(window=4).mean()
+    weekly['Rolling_Std'] = weekly['Sales'].shift(1).rolling(window=4).std()
+    weekly['Z_Score'] = (weekly['Sales'] - weekly['Rolling_Mean']) / weekly['Rolling_Std']
+    anomalies_z = weekly[weekly['Z_Score'].abs() > 2]
+    
+    # 2. Isolation Forest (Multi-source)
+    from sklearn.ensemble import IsolationForest
+    weekly['Year'] = weekly['Order Date'].dt.year
+    try:
+        vgsales = pd.read_csv('vgsales.csv')
+        vgsales = vgsales.dropna(subset=['Year'])
+        vgsales['Year'] = vgsales['Year'].astype(int)
+        annual_vg = vgsales.groupby('Year')['Global_Sales'].sum().reset_index()
+        annual_vg.rename(columns={'Global_Sales': 'VG_Global_Sales'}, inplace=True)
+        weekly = weekly.merge(annual_vg, on='Year', how='left')
+        weekly['VG_Global_Sales'] = weekly['VG_Global_Sales'].fillna(0)
+    except:
+        weekly['VG_Global_Sales'] = 0
+        
+    iso_forest = IsolationForest(contamination=0.05, random_state=42)
+    weekly['Anomaly_IF'] = iso_forest.fit_predict(weekly[['Sales', 'VG_Global_Sales']])
+    anomalies_if = weekly[weekly['Anomaly_IF'] == -1]
+    
+    # Plot both
+    fig = px.line(weekly, x='Order Date', y='Sales', title="Weekly Sales Anomalies")
+    fig.add_scatter(x=anomalies_if['Order Date'], y=anomalies_if['Sales'], mode='markers', name='Isolation Forest', marker=dict(color='red', size=10))
+    fig.add_scatter(x=anomalies_z['Order Date'], y=anomalies_z['Sales'], mode='markers', name='Z-Score (>2)', marker=dict(color='orange', symbol='x', size=10))
     st.plotly_chart(fig)
-    st.subheader("Detected Anomalies Table")
-    st.dataframe(anomalies[['Order Date', 'Sales', 'Z_Score']])
+    
+    st.subheader("Detected Anomalies (Isolation Forest)")
+    st.dataframe(anomalies_if[['Order Date', 'Sales']])
+    
+    st.subheader("Detected Anomalies (Z-Score)")
+    st.dataframe(anomalies_z[['Order Date', 'Sales', 'Z_Score']])
 
 elif page == "Product Demand Segments":
     st.title("Product Demand Segments (K-Means)")
